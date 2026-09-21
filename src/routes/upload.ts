@@ -1,6 +1,14 @@
 import { error } from 'itty-router';
 import type { Env, Request } from '../lib/types';
-import { expiryUrl, generateShortCode, parseDuration, parseOneTime, checkRateLimit, getClientIp, oneTimeConfirmResponse } from '../lib/utils';
+import {
+  expiresAtFor,
+  generateShortCode,
+  parseDuration,
+  parseOneTime,
+  checkRateLimit,
+  getClientIp,
+  oneTimeConfirmResponse,
+} from '../lib/utils';
 
 // POST /api/upload
 // Request body: multipart/form-data with "image" field,
@@ -19,24 +27,65 @@ const ALLOWED_IMAGE_TYPES: Record<string, string> = {
   'image/webp': 'webp',
 };
 
+interface ImageState {
+  expiresAt?: string;
+  oneTime: boolean;
+}
+
+/**
+ * Reads expiry + one-time state from R2 custom metadata.
+ * Accepts the legacy mixed-case `oneTime` key too (objects uploaded before
+ * the lowercase-key fix); new uploads always write lowercase `onetime`
+ * because metadata travels as case-insensitive `x-amz-meta-*` headers.
+ */
+const readImageState = (file: R2ObjectBody): ImageState => {
+  const meta = file.customMetadata ?? {};
+  return {
+    expiresAt: meta.expiresAt,
+    oneTime: meta.onetime === '1' || meta.oneTime === '1',
+  };
+};
+
+/** `Cache-Control` for regular images, capped at the remaining TTL (max 1 day). */
+const imageCacheControl = (expiresAt?: string): string => {
+  if (!expiresAt) return 'public, max-age=31536000, immutable';
+  const remainingSec = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+  return `public, max-age=${Math.min(remainingSec, 86400)}`;
+};
+
+const imageNotFound = (code: string) =>
+  error(
+    404,
+    `Image '${code}' not found. It either never existed or already burned after its one glorious view.`,
+  );
+const imageGone = () => error(410, 'This image has expired. Nothing gold can stay.');
+
 export const handleUpload = async (request: Request, env: Env) => {
   const rl = await checkRateLimit(env.SHORT_URLS, 'upload', getClientIp(request));
   if (!rl.allowed) {
-    return new Response(JSON.stringify({ error: "Easy there, shutterbug. Too many uploads — take a breath and try again in a bit." }), {
-      status: 429,
-      headers: { 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfter) },
-    });
+    return new Response(
+      JSON.stringify({
+        error: 'Easy there, shutterbug. Too many uploads — take a breath and try again in a bit.',
+      }),
+      {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfter) },
+      },
+    );
   }
 
   if (!env.IMAGE_R2) {
-    return error(500, "Image storage is not configured. The hamster powering R2 called in sick.");
+    return error(500, 'Image storage is not configured. The hamster powering R2 called in sick.');
   }
 
   let data: FormData;
   try {
     data = await request.formData();
-  } catch (err) {
-    return error(400, "Invalid request. I asked for multipart/form-data with an 'image' field and got... this.");
+  } catch {
+    return error(
+      400,
+      "Invalid request. I asked for multipart/form-data with an 'image' field and got... this.",
+    );
   }
 
   const file = data.get('image') as File | string | null;
@@ -48,7 +97,10 @@ export const handleUpload = async (request: Request, env: Env) => {
   const mimeType = file.type || 'application/octet-stream';
   const fileExt = ALLOWED_IMAGE_TYPES[mimeType];
   if (!fileExt) {
-    return error(400, `Unsupported image type '${mimeType}'. We take png, jpeg, gif, webp — not modern art.`);
+    return error(
+      400,
+      `Unsupported image type '${mimeType}'. We take png, jpeg, gif, webp — not modern art.`,
+    );
   }
 
   if (file.size === 0) {
@@ -71,9 +123,12 @@ export const handleUpload = async (request: Request, env: Env) => {
   try {
     const ttlHours = parseDuration(duration);
     if (ttlHours > MAX_IMAGE_TTL_HOURS) {
-      return error(400, "Images live 30 days max — pick a shorter duration. Nothing hosted here is forever.");
+      return error(
+        400,
+        'Images live 30 days max — pick a shorter duration. Nothing hosted here is forever.',
+      );
     }
-    expiresAt = expiryUrl(fileName, duration).expiresAt;
+    expiresAt = expiresAtFor(duration);
   } catch (err) {
     return error(400, (err as Error).message);
   }
@@ -84,101 +139,61 @@ export const handleUpload = async (request: Request, env: Env) => {
     // R2 accepts ArrayBuffer directly; Node's Buffer does not exist in Workers.
     await env.IMAGE_R2.put(fileName, await file.arrayBuffer(), {
       httpMetadata: {
-        contentType: mimeType
+        contentType: mimeType,
       },
       customMetadata: {
         expiresAt,
         // Lowercase key: customMetadata travels as x-amz-meta-* headers,
         // whose names are case-insensitive and may come back lowercased.
         ...(oneTime ? { onetime: '1' } : {}),
-      }
+      },
     });
   } catch (err) {
-    console.error("R2 put error:", err);
-    return error(500, "Failed to store image. The bucket fumbled it — try again?");
+    console.error('R2 put error:', err);
+    return error(500, 'Failed to store image. The bucket fumbled it — try again?');
   }
 
   const origin = new URL(request.url).origin;
   const shortUrl = `${origin}/img/${fileName}`;
 
-  return new Response(JSON.stringify({
-    code: fileName,
-    shortUrl,
-    originalMimeType: mimeType,
-    expiresAt,
-    ...(oneTime ? { oneTime: true as const } : {}),
-  }), {
-    headers: { 'Content-Type': 'application/json' },
-    status: 201
-  });
+  return new Response(
+    JSON.stringify({
+      code: fileName,
+      shortUrl,
+      originalMimeType: mimeType,
+      expiresAt,
+      ...(oneTime ? { oneTime: true as const } : {}),
+    }),
+    {
+      headers: { 'Content-Type': 'application/json' },
+      status: 201,
+    },
+  );
 };
 
-// GET /img/:code
-// Regular images serve immediately. One-time images render a confirm page —
-// previews/bots only see the page and never burn the entry. The burn happens
-// on POST /img/:code (the form button), which deletes then serves the bytes.
+// Shared read path for GET (preview) and POST (consume) below.
+// Regular images serve immediately. One-time images render a confirm page on
+// GET — previews/bots only see the page and never burn the entry. The burn
+// happens on POST (the form button), which deletes then serves the bytes.
 
-export const handleServeImage = async (request: Request, env: Env) => {
+const serveImage = async (request: Request, env: Env, consume: boolean) => {
   const code = request.params.code;
   const file = await env.IMAGE_R2.get(code);
 
-  if (!file) {
-    return error(404, `Image '${code}' not found. It either never existed or already burned after its one glorious view.`);
-  }
+  if (!file) return imageNotFound(code);
 
-  const expiresAt = file.customMetadata?.expiresAt;
+  const { expiresAt, oneTime } = readImageState(file);
   if (expiresAt && new Date(expiresAt) < new Date()) {
     try {
       await env.IMAGE_R2.delete(code);
-    } catch (e) {}
-    return error(410, "This image has expired. Nothing gold can stay.");
-  }
-
-  // Accept the legacy mixed-case key too (objects uploaded before the fix).
-  const oneTime = file.customMetadata?.onetime === '1' || file.customMetadata?.oneTime === '1';
-  if (oneTime) {
-    return oneTimeConfirmResponse('image');
-  }
-
-  const contentType = file.httpMetadata?.contentType || 'application/octet-stream';
-  const body = await file.arrayBuffer();
-
-  // Don't let caches outlive the object: cap max-age at the remaining TTL.
-  // Objects uploaded before expiry existed have no metadata and keep the old header.
-  let cacheControl = 'public, max-age=31536000, immutable';
-  if (expiresAt) {
-    const remainingSec = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
-    cacheControl = `public, max-age=${Math.min(remainingSec, 86400)}`;
-  }
-
-  return new Response(body, {
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': cacheControl
+    } catch {
+      // Best-effort expiry cleanup.
     }
-  });
-};
-
-// POST /img/:code — consumes a one-time image (burn after reading).
-
-export const handleConsumeImage = async (request: Request, env: Env) => {
-  const code = request.params.code;
-  const file = await env.IMAGE_R2.get(code);
-
-  if (!file) {
-    return error(404, `Image '${code}' not found. It either never existed or already burned after its one glorious view.`);
+    return imageGone();
   }
 
-  const expiresAt = file.customMetadata?.expiresAt;
-  if (expiresAt && new Date(expiresAt) < new Date()) {
-    try {
-      await env.IMAGE_R2.delete(code);
-    } catch (e) {}
-    return error(410, "This image has expired. Nothing gold can stay.");
-  }
+  if (oneTime && !consume) return oneTimeConfirmResponse('image');
 
-  // Accept the legacy mixed-case key too (objects uploaded before the fix).
-  const oneTime = file.customMetadata?.onetime === '1' || file.customMetadata?.oneTime === '1';
   const contentType = file.httpMetadata?.contentType || 'application/octet-stream';
   const body = await file.arrayBuffer();
 
@@ -186,25 +201,29 @@ export const handleConsumeImage = async (request: Request, env: Env) => {
     // Burn after reading: delete so a second viewer gets 404.
     try {
       await env.IMAGE_R2.delete(code);
-    } catch (e) {}
+    } catch {
+      // Best-effort: still serve even if the delete failed.
+    }
     return new Response(body, {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'no-store',
-      }
+      },
     });
-  }
-
-  let cacheControl = 'public, max-age=31536000, immutable';
-  if (expiresAt) {
-    const remainingSec = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
-    cacheControl = `public, max-age=${Math.min(remainingSec, 86400)}`;
   }
 
   return new Response(body, {
     headers: {
       'Content-Type': contentType,
-      'Cache-Control': cacheControl
-    }
+      'Cache-Control': imageCacheControl(expiresAt),
+    },
   });
 };
+
+// GET /img/:code — serves regular images, confirm page for one-time ones.
+export const handleServeImage = async (request: Request, env: Env) =>
+  serveImage(request, env, false);
+
+// POST /img/:code — consumes a one-time image (burn after reading).
+export const handleConsumeImage = async (request: Request, env: Env) =>
+  serveImage(request, env, true);

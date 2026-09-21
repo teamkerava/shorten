@@ -6,7 +6,20 @@
   "scripts": {
     "start": "wrangler dev",
     "deploy": "wrangler deploy",
-    "prepare": "husky"
+    "prepare": "husky",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "lint-staged": {
+    "*.{ts,js,mjs,cjs,json,html,css}": [
+      "prettier --write"
+    ],
+    "src/**/*.ts": [
+      "eslint --fix"
+    ]
   },
   "keywords": [],
   "author": "",
@@ -16,9 +29,16 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260911.1",
+    "@eslint/js": "^9",
     "bun-types": "^1.4.2",
+    "eslint": "^9",
+    "eslint-config-prettier": "^10",
+    "globals": "^16",
     "husky": "^9.1.7",
-    "typescript": "^7.0.2",
+    "lint-staged": "^15",
+    "prettier": "^3",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8",
     "wrangler": "^4.131.1"
   }
 }

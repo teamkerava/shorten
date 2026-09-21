@@ -1,95 +1,140 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>docs — shorten_</title>
-    <meta name="description" content="API docs for shorten_ — shorten URLs and upload images with expiry and one-time links.">
-    <link rel="canonical" href="https://url.imuroin.net/api/docs">
-    <meta name="theme-color" content="#38bdf8">
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="shorten_">
-    <meta property="og:title" content="docs — shorten_">
-    <meta property="og:description" content="API docs for shorten_ — shorten URLs and upload images with expiry and one-time links.">
-    <meta property="og:url" content="https://url.imuroin.net/api/docs">
-    <meta property="og:image" content="https://url.imuroin.net/og-image.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="shorten_ — Short links, nothing else.">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="docs — shorten_">
-    <meta name="twitter:description" content="API docs for shorten_ — shorten URLs and upload images with expiry and one-time links.">
-    <meta name="twitter:image" content="https://url.imuroin.net/og-image.png">
-    <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
+    <meta
+      name="description"
+      content="API docs for shorten_ — shorten URLs and upload images with expiry and one-time links."
+    />
+    <link rel="canonical" href="https://url.imuroin.net/api/docs" />
+    <meta name="theme-color" content="#38bdf8" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="shorten_" />
+    <meta property="og:title" content="docs — shorten_" />
+    <meta
+      property="og:description"
+      content="API docs for shorten_ — shorten URLs and upload images with expiry and one-time links."
+    />
+    <meta property="og:url" content="https://url.imuroin.net/api/docs" />
+    <meta property="og:image" content="https://url.imuroin.net/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="shorten_ — Short links, nothing else." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="docs — shorten_" />
+    <meta
+      name="twitter:description"
+      content="API docs for shorten_ — shorten URLs and upload images with expiry and one-time links."
+    />
+    <meta name="twitter:image" content="https://url.imuroin.net/og-image.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
     <div class="wrap docs">
-    <header><a class="logo" href="/">shorten_</a></header>
-    <p class="back"><a href="/">← back</a></p>
-    <h1>api docs</h1>
+      <header><a class="logo" href="/">shorten_</a></header>
+      <p class="back"><a href="/">← back</a></p>
+      <h1>api docs</h1>
 
-    <h2><span class="m post">POST</span> /api/shorten</h2>
-    <p>shorten a url.</p>
-    <pre><code>curl -X POST https://yourdomain.com/api/shorten \
+      <h2><span class="m post">POST</span> /api/shorten</h2>
+      <p>shorten a url.</p>
+      <pre><code>curl -X POST https://yourdomain.com/api/shorten \
   -H 'content-type: application/json' \
   -d '{"url":"https://example.com","duration":"24h","oneTime":true}'</code></pre>
-    <ul>
+      <ul>
         <li><code>url</code> — required. http(s) only.</li>
-        <li><code>duration</code> — optional. <code>15m</code>, <code>1h</code>, <code>24h</code> (default), <code>1w</code>, or custom like <code>36h</code>.</li>
-        <li><code>oneTime</code> — optional. <code>true</code> burns the link after the recipient reveals it. <code>GET</code> only shows a confirm page (safe for previews/bots); <code>POST</code> burns and redirects.</li>
-    </ul>
-    <pre><code>{
+        <li>
+          <code>duration</code> — optional. <code>15m</code>, <code>1h</code>,
+          <code>24h</code> (default), <code>1w</code>, or custom like <code>36h</code>.
+        </li>
+        <li>
+          <code>oneTime</code> — optional. <code>true</code> burns the link after the recipient
+          reveals it. <code>GET</code> only shows a confirm page (safe for previews/bots);
+          <code>POST</code> burns and redirects.
+        </li>
+      </ul>
+      <pre><code>{
   "code": "abc123",
   "shortUrl": "https://yourdomain.com/abc123",
   "expiresAt": "2026-09-13T12:00:00.000Z",
   "oneTime": true
 }</code></pre>
 
-    <h2><span class="m post">POST</span> /api/upload</h2>
-    <p>upload an image, get a link back. max 10mb: png jpeg gif webp.</p>
-    <pre><code>curl -X POST https://yourdomain.com/api/upload \
+      <h2><span class="m post">POST</span> /api/upload</h2>
+      <p>upload an image, get a link back. max 10mb: png jpeg gif webp.</p>
+      <pre><code>curl -X POST https://yourdomain.com/api/upload \
   -F image=@cat.png -F duration=24h -F oneTime=true</code></pre>
-    <ul>
+      <ul>
         <li><code>image</code> — required. the file.</li>
         <li><code>duration</code> — optional, same values as above, 30 days max.</li>
-        <li><code>oneTime</code> — optional (<code>true</code>/<code>1</code>). burns the link after the recipient reveals it. <code>GET</code> only shows a confirm page (safe for previews/bots); <code>POST</code> burns and serves.</li>
-    </ul>
-    <p>images are deleted automatically after 30 days at the latest.</p>
-    <pre><code>{
+        <li>
+          <code>oneTime</code> — optional (<code>true</code>/<code>1</code>). burns the link after
+          the recipient reveals it. <code>GET</code> only shows a confirm page (safe for
+          previews/bots); <code>POST</code> burns and serves.
+        </li>
+      </ul>
+      <p>images are deleted automatically after 30 days at the latest.</p>
+      <pre><code>{
   "code": "a1b2c3d4.png",
   "shortUrl": "https://yourdomain.com/img/a1b2c3d4.png",
   "originalMimeType": "image/png",
   "expiresAt": "2026-09-13T12:00:00.000Z"
 }</code></pre>
 
-    <h2><span class="m get">GET</span> /:code</h2>
-    <p><code>301</code> to target. <code>404</code> if unknown (or already burned). <code>410</code> if expired. one-time links return a <code>200</code> confirm page on <code>GET</code> (with <code>no-store</code>); <code>POST</code> burns then <code>301</code> redirects with <code>no-store</code>.</p>
+      <h2><span class="m get">GET</span> /:code</h2>
+      <p>
+        <code>301</code> to target. <code>404</code> if unknown (or already burned).
+        <code>410</code> if expired. one-time links return a <code>200</code> confirm page on
+        <code>GET</code> (with <code>no-store</code>); <code>POST</code> burns then
+        <code>301</code> redirects with <code>no-store</code>.
+      </p>
 
-    <h2><span class="m get">GET</span> /img/:code</h2>
-    <p>serves the image. <code>404</code> if missing (or already burned). <code>410</code> if expired. one-time images return a <code>200</code> confirm page on <code>GET</code> (with <code>no-store</code>); <code>POST</code> burns then serves with <code>no-store</code>.</p>
+      <h2><span class="m get">GET</span> /img/:code</h2>
+      <p>
+        serves the image. <code>404</code> if missing (or already burned). <code>410</code> if
+        expired. one-time images return a <code>200</code> confirm page on <code>GET</code> (with
+        <code>no-store</code>); <code>POST</code> burns then serves with <code>no-store</code>.
+      </p>
 
-    <h2>notes</h2>
-    <p>links expire — default <code>24h</code>. expired entries return <code>410</code> and are deleted on access. write APIs are rate-limited per IP (<code>429</code> + <code>Retry-After</code> when over). errors look like <code>{"error": "..."}</code> with a matching status code.</p>
+      <h2>notes</h2>
+      <p>
+        links expire — default <code>24h</code>. expired entries return <code>410</code> and are
+        deleted on access. write APIs are rate-limited per IP (<code>429</code> +
+        <code>Retry-After</code> when over). errors look like <code>{"error": "..."}</code> with a
+        matching status code.
+      </p>
     </div>
     <script>
-    // Copy buttons for the curl/json snippets — no build step, like app.js.
-    document.querySelectorAll('.docs pre').forEach(function (pre) {
+      // Copy buttons for the curl/json snippets — no build step, like app.js.
+      document.querySelectorAll('.docs pre').forEach(function (pre) {
         var b = document.createElement('button');
         b.type = 'button';
         b.textContent = 'copy';
         b.className = 'copy';
         b.onclick = function () {
-            var t = pre.querySelector('code').innerText;
-            var done = function (good) {
-                b.textContent = good ? 'copied' : 'copy failed';
-                setTimeout(function () { b.textContent = 'copy'; }, 1400);
-            };
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(t).then(function () { done(true); }, function () { done(false); });
-            } else { done(false); }
+          var t = pre.querySelector('code').innerText;
+          var done = function (good) {
+            b.textContent = good ? 'copied' : 'copy failed';
+            setTimeout(function () {
+              b.textContent = 'copy';
+            }, 1400);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(t).then(
+              function () {
+                done(true);
+              },
+              function () {
+                done(false);
+              },
+            );
+          } else {
+            done(false);
+          }
         };
         pre.appendChild(b);
-    });
+      });
     </script>
-</body>
+  </body>
 </html>

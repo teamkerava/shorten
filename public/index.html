@@ -1,91 +1,165 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>shorten_ — url + image short links</title>
-    <meta name="description" content="Short links, nothing else. Paste a URL or drop an image, get a short link back. Links expire — default 24h.">
-    <link rel="canonical" href="https://url.imuroin.net/">
-    <meta name="theme-color" content="#38bdf8">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231a1a1a'/%3E%3Ctext x='10' y='44' font-family='monospace' font-size='36' font-weight='bold' fill='white'%3Es%3Ctspan fill='%2338bdf8'%3E_%3C/tspan%3E%3C/text%3E%3C/svg%3E">
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="shorten_">
-    <meta property="og:title" content="shorten_ — url + image short links">
-    <meta property="og:description" content="Paste a URL or drop an image. You get a short link back. Links expire — default 24h.">
-    <meta property="og:url" content="https://url.imuroin.net/">
-    <meta property="og:image" content="https://url.imuroin.net/og-image.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="shorten_ — Short links, nothing else.">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="shorten_ — url + image short links">
-    <meta name="twitter:description" content="Paste a URL or drop an image. You get a short link back. Links expire — default 24h.">
-    <meta name="twitter:image" content="https://url.imuroin.net/og-image.png">
-    <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
+    <meta
+      name="description"
+      content="Short links, nothing else. Paste a URL or drop an image, get a short link back. Links expire — default 24h."
+    />
+    <link rel="canonical" href="https://url.imuroin.net/" />
+    <meta name="theme-color" content="#38bdf8" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231a1a1a'/%3E%3Ctext x='10' y='44' font-family='monospace' font-size='36' font-weight='bold' fill='white'%3Es%3Ctspan fill='%2338bdf8'%3E_%3C/tspan%3E%3C/text%3E%3C/svg%3E"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="shorten_" />
+    <meta property="og:title" content="shorten_ — url + image short links" />
+    <meta
+      property="og:description"
+      content="Paste a URL or drop an image. You get a short link back. Links expire — default 24h."
+    />
+    <meta property="og:url" content="https://url.imuroin.net/" />
+    <meta property="og:image" content="https://url.imuroin.net/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="shorten_ — Short links, nothing else." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="shorten_ — url + image short links" />
+    <meta
+      name="twitter:description"
+      content="Paste a URL or drop an image. You get a short link back. Links expire — default 24h."
+    />
+    <meta name="twitter:image" content="https://url.imuroin.net/og-image.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
     <div class="wrap">
-        <header>
-            <a class="logo" href="/">shorten<b>_</b></a>
-            <nav><a href="/api/docs">api docs</a><a href="https://github.com/teamkerava/shorten" target="_blank" rel="noopener">github</a></nav>
-        </header>
+      <header>
+        <a class="logo" href="/">shorten<b>_</b></a>
+        <nav>
+          <a href="/api/docs">api docs</a
+          ><a href="https://github.com/teamkerava/shorten" target="_blank" rel="noopener">github</a>
+        </nav>
+      </header>
 
-        <h1>Short links, nothing else.</h1>
-        <p class="sub">Paste a URL or drop an image. You get a short link back. Links expire — default <code>24h</code>.</p>
+      <h1>Short links, nothing else.</h1>
+      <p class="sub">
+        Paste a URL or drop an image. You get a short link back. Links expire — default
+        <code>24h</code>.
+      </p>
 
-        <div class="box">
-            <div class="tabs" role="tablist" aria-label="shorten modes">
-                <button type="button" id="tab-url" class="active" role="tab" aria-selected="true" aria-controls="panel-url">url → link</button>
-                <button type="button" id="tab-image" role="tab" aria-selected="false" aria-controls="panel-image">image → link</button>
-            </div>
-            <div class="body">
-                <div class="pane active" id="panel-url" role="tabpanel" aria-labelledby="tab-url">
-                    <form id="shortenForm" novalidate>
-                        <label class="lbl" for="urlInput">destination url</label>
-                        <input type="url" id="urlInput" placeholder="https://example.com/long/path" autocomplete="off" spellcheck="false">
-                        <div style="height:14px"></div>
-                        <label class="lbl">expires after</label>
-                        <div class="exp" id="expiryGrid">
-                            <button type="button" data-value="15m">15m</button>
-                            <button type="button" data-value="1h">1h</button>
-                            <button type="button" data-value="24h" class="on">24h</button>
-                            <button type="button" data-value="1w">1w</button>
-                            <button type="button" data-value="custom">custom</button>
-                        </div>
-                        <div id="customRow"><input type="text" id="durationInput" placeholder="45m, 36h, 10d"></div>
-                        <label class="check"><input type="checkbox" id="oneTimeCheck"> burn after reading — one-time link</label>
-                        <p class="note">one-time links show a confirm page first — previews and bots can't burn them, only your recipient's click reveals them.</p>
-                        <button type="submit" class="submit" id="shortenBtn">shorten →</button>
-                    </form>
-                </div>
-                <div class="pane" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
-                    <form id="uploadForm" novalidate>
-                        <label class="lbl">image file — png jpg gif webp, max 10mb</label>
-                        <div class="drop" id="dropzone" tabindex="0" role="button" aria-label="choose an image: drop a file, paste from clipboard, or press enter to browse">drop image here, paste from clipboard, or click to browse<input type="file" id="imageName" accept="image/png,image/jpeg,image/gif,image/webp"></div>
-                        <div class="fileline" id="filePreview"><img id="fileThumb" alt=""><span id="fileName">—</span><button type="button" id="fileRemove">remove</button></div>
-                        <div style="height:14px"></div>
-                        <label class="lbl">expires after</label>
-                        <div class="exp" id="imageExpiryGrid">
-                            <button type="button" data-value="15m">15m</button>
-                            <button type="button" data-value="1h">1h</button>
-                            <button type="button" data-value="24h" class="on">24h</button>
-                            <button type="button" data-value="1w">1w</button>
-                            <button type="button" data-value="custom">custom</button>
-                        </div>
-                        <div id="imageCustomRow"><input type="text" id="imageDurationInput" placeholder="45m, 36h, 10d"></div>
-                        <p class="note">images are deleted automatically after 30 days at the latest.</p>
-                        <label class="check"><input type="checkbox" id="imageOneTimeCheck"> burn after reading — one-time link</label>
-                        <p class="note">one-time links show a confirm page first — previews and bots can't burn them, only your recipient's click reveals them.</p>
-                        <div class="progress" id="uploadProgress"><div class="track"><div id="uploadBar"></div></div><button type="button" id="uploadCancel">cancel</button></div>
-                        <button type="submit" class="submit" id="uploadBtn">upload →</button>
-                    </form>
-                </div>
-                <div id="result" aria-live="polite"></div>
-            </div>
+      <div class="box">
+        <div class="tabs" role="tablist" aria-label="shorten modes">
+          <button
+            type="button"
+            id="tab-url"
+            class="active"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-url"
+          >
+            url → link
+          </button>
+          <button
+            type="button"
+            id="tab-image"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-image"
+          >
+            image → link
+          </button>
         </div>
-
+        <div class="body">
+          <div class="pane active" id="panel-url" role="tabpanel" aria-labelledby="tab-url">
+            <form id="shortenForm" novalidate>
+              <label class="lbl" for="urlInput">destination url</label>
+              <input
+                type="url"
+                id="urlInput"
+                placeholder="https://example.com/long/path"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <div style="height: 14px"></div>
+              <label class="lbl">expires after</label>
+              <div class="exp" id="expiryGrid">
+                <button type="button" data-value="15m">15m</button>
+                <button type="button" data-value="1h">1h</button>
+                <button type="button" data-value="24h" class="on">24h</button>
+                <button type="button" data-value="1w">1w</button>
+                <button type="button" data-value="custom">custom</button>
+              </div>
+              <div id="customRow">
+                <input type="text" id="durationInput" placeholder="45m, 36h, 10d" />
+              </div>
+              <label class="check"
+                ><input type="checkbox" id="oneTimeCheck" /> burn after reading — one-time
+                link</label
+              >
+              <p class="note">
+                one-time links show a confirm page first — previews and bots can't burn them, only
+                your recipient's click reveals them.
+              </p>
+              <button type="submit" class="submit" id="shortenBtn">shorten →</button>
+            </form>
+          </div>
+          <div class="pane" id="panel-image" role="tabpanel" aria-labelledby="tab-image">
+            <form id="uploadForm" novalidate>
+              <label class="lbl">image file — png jpg gif webp, max 10mb</label>
+              <div
+                class="drop"
+                id="dropzone"
+                tabindex="0"
+                role="button"
+                aria-label="choose an image: drop a file, paste from clipboard, or press enter to browse"
+              >
+                drop image here, paste from clipboard, or click to browse<input
+                  type="file"
+                  id="imageName"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                />
+              </div>
+              <div class="fileline" id="filePreview">
+                <img id="fileThumb" alt="" /><span id="fileName">—</span
+                ><button type="button" id="fileRemove">remove</button>
+              </div>
+              <div style="height: 14px"></div>
+              <label class="lbl">expires after</label>
+              <div class="exp" id="imageExpiryGrid">
+                <button type="button" data-value="15m">15m</button>
+                <button type="button" data-value="1h">1h</button>
+                <button type="button" data-value="24h" class="on">24h</button>
+                <button type="button" data-value="1w">1w</button>
+                <button type="button" data-value="custom">custom</button>
+              </div>
+              <div id="imageCustomRow">
+                <input type="text" id="imageDurationInput" placeholder="45m, 36h, 10d" />
+              </div>
+              <p class="note">images are deleted automatically after 30 days at the latest.</p>
+              <label class="check"
+                ><input type="checkbox" id="imageOneTimeCheck" /> burn after reading — one-time
+                link</label
+              >
+              <p class="note">
+                one-time links show a confirm page first — previews and bots can't burn them, only
+                your recipient's click reveals them.
+              </p>
+              <div class="progress" id="uploadProgress">
+                <div class="track"><div id="uploadBar"></div></div>
+                <button type="button" id="uploadCancel">cancel</button>
+              </div>
+              <button type="submit" class="submit" id="uploadBtn">upload →</button>
+            </form>
+          </div>
+          <div id="result" aria-live="polite"></div>
+        </div>
+      </div>
     </div>
 
     <script src="/app.js" defer></script>
-</body>
+  </body>
 </html>

@@ -1,8 +1,9 @@
+bunx lint-staged
 bunx tsc --noEmit
 
 # Non-blocking reminder: if behavior/layout/commands changed, AGENTS.md should
 # change in the same commit (see the "Keep me fresh" rule at its top).
-if git diff --cached --name-only | grep -qE '^(src/|public/|wrangler\.toml|package\.json)'; then
+if git diff --cached --name-only | grep -qE '^(src/|public/|wrangler\.toml|package\.json|eslint\.config\.mjs|\.prettierrc)'; then
   git diff --cached --name-only | grep -q '^AGENTS\.md$' \
     || echo "note: src/public/config changed without AGENTS.md — update it if behavior, routes, limits, or commands changed."
 fi

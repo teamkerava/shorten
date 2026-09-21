@@ -1,8 +1,10 @@
+const CODE_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
 export const generateShortCode = (length: number = 6): string => {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
   let result = '';
   for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += CODE_CHARS[bytes[i] % CODE_CHARS.length];
   }
   return result;
 };
@@ -11,25 +13,36 @@ export const parseDuration = (duration: string | number): number => {
   if (typeof duration === 'number') return duration;
 
   const match = duration.match(/^(\d+)([mhdw]?)$/i);
-  if (!match) throw new Error("Invalid duration. I accept '15m', '1h', '1d', '1w' and friends — 'forever' is not a unit.");
+  if (!match)
+    throw new Error(
+      "Invalid duration. I accept '15m', '1h', '1d', '1w' and friends — 'forever' is not a unit.",
+    );
 
-  const value = parseInt(match[1]);
+  const value = Number.parseInt(match[1], 10);
   const unit = match[2]?.toLowerCase() || 'h'; // default to hours if no unit
 
   switch (unit) {
-    case 'm': return value / 60; // minutes to hours
-    case 'h': return value;
-    case 'd': return value * 24;
-    case 'w': return value * 24 * 7;
-    default: throw new Error("Unknown time unit. I know m, h, d and w — pick a letter I recognize.");
+    case 'm':
+      return value / 60; // minutes to hours
+    case 'h':
+      return value;
+    case 'd':
+      return value * 24;
+    case 'w':
+      return value * 24 * 7;
+    default:
+      throw new Error('Unknown time unit. I know m, h, d and w — pick a letter I recognize.');
   }
 };
 
-export const expiryUrl = (url: string, duration: string | number = 24): { url: string; expiresAt: string } => {
-  const hours = parseDuration(duration);
-  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-  return { url, expiresAt };
-};
+/** ISO expiry timestamp `duration` from now (any `parseDuration` value). */
+export const expiresAtFor = (duration: string | number = '24h'): string =>
+  new Date(Date.now() + parseDuration(duration) * 3_600_000).toISOString();
+
+export const expiryUrl = (
+  url: string,
+  duration: string | number = 24,
+): { url: string; expiresAt: string } => ({ url, expiresAt: expiresAtFor(duration) });
 
 /**
  * Normalizes opt-in one-time flags from JSON bodies (`boolean`) and
@@ -51,7 +64,8 @@ export const parseOneTime = (value: unknown): boolean => {
  */
 export const oneTimeConfirmResponse = (kind: 'link' | 'image'): Response => {
   const noun = kind === 'link' ? 'link' : 'image';
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+  const html =
+    `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width, initial-scale=1">` +
     `<meta name="robots" content="noindex, nofollow, noarchive">` +
     `<title>one-time ${noun} — click to reveal</title>` +
@@ -89,15 +103,18 @@ export const RATE_LIMITS = {
 export type RateLimitRoute = keyof typeof RATE_LIMITS;
 
 export const getClientIp = (request: Request): string => {
-  const cf = request.headers.get('CF-Connecting-IP');
-  if (cf && cf.trim()) return cf.trim();
-  const xff = request.headers.get('X-Forwarded-For');
-  if (xff && xff.trim()) return xff.split(',')[0].trim();
+  const cf = request.headers.get('CF-Connecting-IP')?.trim();
+  if (cf) return cf;
+  const forwarded = request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim();
+  if (forwarded) return forwarded;
   return 'unknown';
 };
 
 export const checkRateLimit = async (
-  kv: { get(key: string): Promise<string | null>; put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void> },
+  kv: {
+    get(key: string): Promise<string | null>;
+    put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
+  },
   route: RateLimitRoute,
   ip: string,
 ): Promise<{ allowed: boolean; retryAfter: number }> => {
@@ -110,8 +127,9 @@ export const checkRateLimit = async (
   let count = 0;
   try {
     const raw = await kv.get(key);
-    if (raw) count = parseInt(raw, 10) || 0;
-  } catch (e) {
+    if (raw) count = Number.parseInt(raw, 10) || 0;
+  } catch {
+    // Best-effort: a failed read must not block writes.
     return { allowed: true, retryAfter: 0 };
   }
   if (count >= limit) {
@@ -119,6 +137,8 @@ export const checkRateLimit = async (
   }
   try {
     await kv.put(key, String(count + 1), { expirationTtl: windowSeconds });
-  } catch (e) {}
+  } catch {
+    // Best-effort: a failed write must not block this request.
+  }
   return { allowed: true, retryAfter: 0 };
 };
